@@ -11,6 +11,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:provider/provider.dart';
 
+import '../custom_log/custom_log_page.dart';
 import 'main_view_model.dart';
 
 class MainPage extends StatefulWidget {
@@ -49,8 +50,9 @@ class _MainPageState extends BasePage<MainPage, MainViewModel> {
                 // _leftItem("images/ic_devices_info.svg", "设备信息", 0),
                 _leftItem("images/ic_quick_future.svg", "快捷功能", 1),
                 _leftItem("images/ic_folder.svg", "文件管理", 2),
-                _leftItem("images/ic_log.svg", "LogCat", 3),
-                _leftItem("images/ic_settings.svg", "设置", 4),
+                _leftItem("images/ic_request_log.svg", "请求日志", 3),
+                _leftItem("images/ic_log.svg", "LOGCAT", 4),
+                _leftItem("images/ic_settings.svg", "设置", 5),
               ],
             ),
           ),
@@ -84,8 +86,10 @@ class _MainPageState extends BasePage<MainPage, MainViewModel> {
     } else if (value == 2) {
       return FileManagerPage(viewModel.deviceId);
     } else if (value == 3) {
-      return AndroidLogPage(deviceId: viewModel.deviceId);
+      return CustomLogPage(deviceId: viewModel.deviceId);
     } else if (value == 4) {
+      return AndroidLogPage(deviceId: viewModel.deviceId);
+    }  else if (value == 5) {
       return AdbSettingDialog(viewModel.adbPath);
     } else {
       return Container();

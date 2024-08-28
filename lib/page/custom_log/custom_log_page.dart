@@ -1,0 +1,296 @@
+import 'package:android_tool/page/android_log/android_log_view_model.dart';
+import 'package:android_tool/page/common/base_page.dart';
+import 'package:android_tool/widget/pop_up_menu_button.dart';
+import 'package:android_tool/widget/text_view.dart';
+import 'package:flutter/gestures.dart';
+import 'package:flutter/material.dart';
+import 'package:flutter_list_view/flutter_list_view.dart';
+import 'package:provider/provider.dart';
+import 'package:substring_highlight/substring_highlight.dart';
+
+import 'custom_log_view_model.dart';
+
+class CustomLogPage extends StatefulWidget {
+  final String deviceId;
+
+  const CustomLogPage({Key? key, required this.deviceId}) : super(key: key);
+
+  @override
+  State<CustomLogPage> createState() => _CustomLogPageState();
+}
+
+class _CustomLogPageState extends BasePage<CustomLogPage, CustomLogViewModel> {
+  @override
+  void initState() {
+    super.initState();
+    viewModel.init();
+  }
+
+  @override
+  Widget contentView(BuildContext context) {
+    return Column(
+      children: [
+        const SizedBox(height: 10),
+        Row(
+          children: [
+            const SizedBox(width: 16),
+            const TextView("日志："),
+            OutlinedButton(
+              style: ButtonStyle(
+                backgroundColor: WidgetStateProperty.all<Color>(Colors.blue),
+                foregroundColor: WidgetStateProperty.all<Color>(Colors.white),
+                textStyle: WidgetStateProperty.all<TextStyle>(
+                    TextStyle(color: Colors.white30)),
+                overlayColor: WidgetStateProperty.all<Color>(Colors.blue),
+                side: WidgetStateProperty.all<BorderSide>(
+                    (BorderSide(color: Colors.blue))),
+              ),
+              onPressed: () {
+                viewModel.formatLog();
+              },
+              child: Text("格式化日志"),
+            ),
+            const SizedBox(width: 12),
+            OutlinedButton(
+              style: ButtonStyle(
+                backgroundColor: WidgetStateProperty.all<Color>(Colors.blue),
+                foregroundColor: WidgetStateProperty.all<Color>(Colors.white),
+                textStyle: WidgetStateProperty.all<TextStyle>(
+                    TextStyle(color: Colors.white30)),
+                overlayColor: WidgetStateProperty.all<Color>(Colors.blue),
+                side: WidgetStateProperty.all<BorderSide>(
+                    (BorderSide(color: Colors.blue))),
+              ),
+              onPressed: () {
+                viewModel.jsonFormat(viewModel.contentController.text);
+              },
+              child: Text("格式化JSON"),
+            ),
+            const SizedBox(width: 12),
+            OutlinedButton(
+              style: ButtonStyle(
+                backgroundColor: WidgetStateProperty.all<Color>(Colors.blue),
+                foregroundColor: WidgetStateProperty.all<Color>(Colors.white),
+                textStyle: WidgetStateProperty.all<TextStyle>(
+                    TextStyle(color: Colors.white30)),
+                overlayColor: WidgetStateProperty.all<Color>(Colors.blue),
+                side: WidgetStateProperty.all<BorderSide>(
+                    (BorderSide(color: Colors.blue))),
+              ),
+              onPressed: () {
+                viewModel
+                    .jsonFormatNestedJson(viewModel.contentController.text);
+              },
+              child: Text("解析嵌套JSON字符串"),
+            ),
+            const SizedBox(width: 12),
+            OutlinedButton(
+              onPressed: () {
+                viewModel.clearText();
+              },
+              child: const TextView("清空内容"),
+            ),
+            const SizedBox(width: 12),
+            Consumer<CustomLogViewModel>(
+              builder: (context, viewModel, child) {
+                return _resultStateText(viewModel);
+              },
+            ),
+          ],
+        ),
+        const SizedBox(height: 8),
+        Row(
+          children: [
+            const SizedBox(width: 16),
+            const TextView("加解密："),
+            OutlinedButton(
+              style: ButtonStyle(
+                backgroundColor: WidgetStateProperty.all<Color>(Colors.red),
+                foregroundColor: WidgetStateProperty.all<Color>(Colors.white),
+                textStyle: WidgetStateProperty.all<TextStyle>(
+                    TextStyle(color: Colors.white30)),
+                overlayColor: WidgetStateProperty.all<Color>(Colors.red),
+                side: WidgetStateProperty.all<BorderSide>(
+                    (BorderSide(color: Colors.red))),
+              ),
+              onPressed: () {
+                viewModel.encrypt(viewModel.contentController.text);
+              },
+              child: Text("加密"),
+            ),
+            const SizedBox(width: 12),
+            OutlinedButton(
+              style: ButtonStyle(
+                backgroundColor: WidgetStateProperty.all<Color>(Colors.green),
+                foregroundColor: WidgetStateProperty.all<Color>(Colors.white),
+                textStyle: WidgetStateProperty.all<TextStyle>(
+                    TextStyle(color: Colors.white30)),
+                overlayColor: WidgetStateProperty.all<Color>(Colors.green),
+                side: WidgetStateProperty.all<BorderSide>(
+                    (BorderSide(color: Colors.green))),
+              ),
+              onPressed: () {
+                viewModel.decode(viewModel.contentController.text);
+              },
+              child: Text("解密"),
+            ),
+
+            const SizedBox(width: 12),
+            OutlinedButton(
+              style: ButtonStyle(
+                backgroundColor: WidgetStateProperty.all<Color>(Colors.green),
+                foregroundColor: WidgetStateProperty.all<Color>(Colors.white),
+                textStyle: WidgetStateProperty.all<TextStyle>(
+                    TextStyle(color: Colors.white30)),
+                overlayColor: WidgetStateProperty.all<Color>(Colors.green),
+                side: WidgetStateProperty.all<BorderSide>(
+                    (BorderSide(color: Colors.green))),
+              ),
+              onPressed: () {
+                viewModel.decodeAndJsonFormat(viewModel.contentController.text);
+              },
+              child: Text("解密格式化为JSON"),
+            ),
+            const SizedBox(width: 12),
+            Container(
+              height: 33,
+              width: 150,
+              alignment: Alignment.centerLeft,
+              padding: const EdgeInsets.symmetric(horizontal: 8),
+              // decoration: BoxDecoration(
+              //   border: Border.all(color: Colors.grey),
+              //   borderRadius: BorderRadius.circular(5),
+              // ),
+              child: TextField(
+                controller: viewModel.ivController,
+                decoration: const InputDecoration(
+                  contentPadding:
+                      EdgeInsets.symmetric(vertical: 0, horizontal: 8),
+                  hintText: "请输入iv",
+                  border: OutlineInputBorder(),
+                  hintStyle: TextStyle(fontSize: 14),
+                ),
+                style: const TextStyle(fontSize: 14),
+              ),
+            ),
+            const SizedBox(width: 12),
+            Container(
+              height: 33,
+              width: 150,
+              alignment: Alignment.centerLeft,
+              padding: const EdgeInsets.symmetric(horizontal: 8),
+              // decoration: BoxDecoration(
+              //   border: Border.all(color: Colors.grey),
+              //   borderRadius: BorderRadius.circular(5),
+              // ),
+              child: TextField(
+                controller: viewModel.keyController,
+                decoration: const InputDecoration(
+                  contentPadding:
+                      EdgeInsets.symmetric(vertical: 0, horizontal: 8),
+                  hintText: "请输入key",
+                  border: OutlineInputBorder(),
+                  hintStyle: TextStyle(fontSize: 14),
+                ),
+                style: const TextStyle(fontSize: 14),
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 10),
+        _buildLogContentView(),
+        const SizedBox(height: 10),
+      ],
+    );
+  }
+
+  Expanded _buildLogContentView() {
+    return Expanded(
+      child: Container(
+        color: const Color(0xFFF0F0F0),
+        child: Consumer<CustomLogViewModel>(
+          builder: (context, viewModel, child) {
+            return TextField(
+              controller: viewModel.contentController,
+              maxLines: null,
+              // 允许多行输入
+              expands: true,
+              // 高度撑满父布局
+              textAlignVertical: TextAlignVertical.top,
+              decoration: InputDecoration(
+                hintText: '请输入文本...',
+                border: InputBorder.none, // 移除默认的下划线
+                contentPadding: EdgeInsets.all(18), // 内部边距
+              ),
+            );
+          },
+        ),
+      ),
+    );
+  }
+
+  Widget packageNameView(BuildContext context) {
+    return InkWell(
+      onTap: () {
+        viewModel.selectPackageName(context);
+      },
+      child: Container(
+        alignment: Alignment.center,
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(5),
+          border: Border.all(color: Colors.black.withOpacity(0.5)),
+        ),
+        height: 33,
+        child: Row(
+          children: [
+            const SizedBox(width: 10),
+            Selector<CustomLogViewModel, String>(
+              selector: (context, viewModel) => viewModel.packageName,
+              builder: (context, packageName, child) {
+                return TextView(
+                  packageName.isEmpty ? "未选择筛选应用" : packageName,
+                  color: const Color(0xFF666666),
+                  fontSize: 12,
+                );
+              },
+            ),
+            const SizedBox(
+              width: 5,
+            ),
+            const Icon(
+              Icons.arrow_drop_down,
+              color: Color(0xFF666666),
+            ),
+            const SizedBox(width: 5),
+          ],
+        ),
+      ),
+    );
+  }
+
+  @override
+  createViewModel() {
+    return CustomLogViewModel(
+      context,
+      widget.deviceId,
+    );
+  }
+
+  @override
+  void dispose() {
+    super.dispose();
+    viewModel.kill();
+    viewModel.scrollController.dispose();
+  }
+
+  Widget _resultStateText(CustomLogViewModel viewModel) {
+    var errorTextStyle = TextStyle(color: Colors.red, fontSize: 16);
+    var normalTextStyle = TextStyle(color: Colors.green, fontSize: 16);
+
+    return Text(
+      "${viewModel.checkStateStr}",
+      style:
+          viewModel.checkStateStr == "解析成功" ? normalTextStyle : errorTextStyle,
+    );
+  }
+}
