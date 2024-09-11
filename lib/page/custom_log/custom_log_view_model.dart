@@ -6,6 +6,7 @@ import 'package:android_tool/page/common/base_view_model.dart';
 import 'package:android_tool/page/common/package_help_mixin.dart';
 import 'package:android_tool/utils/aes_crypto.dart';
 import 'package:android_tool/widget/pop_up_menu_button.dart';
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_list_view/flutter_list_view.dart';
@@ -31,6 +32,14 @@ class CustomLogViewModel extends BaseViewModel with PackageHelpMixin {
   TextEditingController contentController = TextEditingController();
   TextEditingController ivController = TextEditingController();
   TextEditingController keyController = TextEditingController();
+  TextEditingController searchController = TextEditingController();
+  FocusNode textFieldFocusNode = FocusNode(); // 用于控制 TextField 焦点
+  bool showSearchBar = false;
+  int currentSearchIndex = -1;
+  List<int> matchIndexes = [];
+  FocusNode contentFocusNode = FocusNode();
+  
+  
 
   bool isCaseSensitive = false;
 
@@ -40,17 +49,7 @@ class CustomLogViewModel extends BaseViewModel with PackageHelpMixin {
 
   int findIndex = -1;
 
-  Process? _process;
-
-  List<FilterLevel> filterLevel = [
-    FilterLevel("Verbose", "*:V"),
-    FilterLevel("Debug", "*:D"),
-    FilterLevel("Info", "*:I"),
-    FilterLevel("Warn", "*:W"),
-    FilterLevel("Error", "*:E"),
-  ];
-  PopUpMenuButtonViewModel<FilterLevel> filterLevelViewModel =
-      PopUpMenuButtonViewModel();
+  
 
   CustomLogViewModel(
     BuildContext context,
@@ -59,81 +58,30 @@ class CustomLogViewModel extends BaseViewModel with PackageHelpMixin {
     App().eventBus.on<DeviceIdEvent>().listen((event) async {
       logList.clear();
       deviceId = event.deviceId;
-      kill();
       if (deviceId.isEmpty) {
         resetPackage();
         return;
       }
       await getInstalledApp(deviceId);
-      listenerLog();
     });
-    App().eventBus.on<AdbPathEvent>().listen((event) {
-      logList.clear();
-      adbPath = event.path;
-      kill();
-      listenerLog();
-    });
+
     SharedPreferences.getInstance().then((preferences) {
       isFilterPackage = preferences.getBool(filterPackageKey) ?? false;
       isCaseSensitive = preferences.getBool(caseSensitiveKey) ?? false;
     });
+  }
 
-    filterLevelViewModel.list = filterLevel;
-    filterLevelViewModel.selectValue = filterLevel.first;
-    filterLevelViewModel.addListener(() {
-      kill();
-      listenerLog();
-    });
+  void close(){
+    showSearchBar = false;
+    searchController.clear();
+    matchIndexes.clear();
+     notifyListeners();
   }
 
   void init() async {
     SharedPreferences.getInstance().then((preferences) {
       ivController.text = preferences.getString(aesIvKey) ?? "";
       keyController.text = preferences.getString(aesKeyKey) ?? "";
-    });
-
-  }
-
-  void selectPackageName(BuildContext context) async {
-    var package = await showPackageSelect(context, deviceId);
-    if (packageName == package || package.isEmpty) {
-      return;
-    }
-
-    packageName = package;
-    if (isFilterPackage) {
-      logList.clear();
-      pid = await getPid();
-      kill();
-      listenerLog();
-      notifyListeners();
-    }
-  }
-
-  void listenerLog() {
-    String level = filterLevelViewModel.selectValue?.value ?? "";
-    var list = ["-s", deviceId, "logcat", "$level"];
-    if (isFilterPackage) {
-      list.add("--pid=$pid");
-    }
-    execAdb(list, onProcess: (process) {
-      _process = process;
-      process.stdout.transform(const Utf8Decoder()).listen((line) {
-        if (filterContent.isNotEmpty
-            ? line.toLowerCase().contains(filterContent.toLowerCase())
-            : true) {
-          if (logList.length > 1000) {
-            logList.removeAt(0);
-          }
-          logList.add(line);
-          notifyListeners();
-          if (isShowLast) {
-            scrollController.jumpTo(
-              scrollController.position.maxScrollExtent,
-            );
-          }
-        }
-      });
     });
   }
 
@@ -142,64 +90,6 @@ class CustomLogViewModel extends BaseViewModel with PackageHelpMixin {
     if (value.isNotEmpty) {
       logList.removeWhere((element) => !element.contains(value));
     }
-    notifyListeners();
-  }
-
-  Color getLogColor(String log) {
-    var split = log.split(" ");
-    split.removeWhere((element) => element.isEmpty);
-    String type = "";
-    if (split.length > 4) {
-      type = split[4];
-    }
-    switch (type) {
-      case "V":
-        break;
-      case "D":
-        return const Color(0xFF017F14);
-      case "I":
-        return const Color(0xFF0585C1);
-      case "W":
-        return const Color(0xFFBBBB23);
-      case "E":
-        return const Color(0xFFFF0006);
-      case "F":
-      default:
-        break;
-    }
-    return const Color(0xFF383838);
-  }
-
-  /// 根据包名获取进程应用进程id
-  Future<String> getPid() async {
-    var result = await execAdb([
-      "-s",
-      deviceId,
-      "shell",
-      "ps | grep ${packageName} | awk '{print \$2}'"
-    ]);
-    if (result == null) {
-      return "";
-    }
-    return result.stdout.toString().trim();
-  }
-
-  void kill() {
-    _process?.kill();
-    shell.kill();
-  }
-
-  Future<void> setFilterPackage(bool value) async {
-    isFilterPackage = value;
-    SharedPreferences.getInstance().then((preferences) {
-      preferences.setBool(filterPackageKey, value);
-    });
-    if (value) {
-      pid = await getPid();
-      logList.removeWhere((element) => !element.contains(pid));
-    }
-    kill();
-    listenerLog();
     notifyListeners();
   }
 
@@ -213,6 +103,7 @@ class CustomLogViewModel extends BaseViewModel with PackageHelpMixin {
 
   void jsonFormat(String content) {
     try {
+      content = removeIfQuoted(content);
       if (!(content.startsWith("{") || content.startsWith("["))) {
         throw FormatException("字符串不是json");
       }
@@ -237,6 +128,7 @@ class CustomLogViewModel extends BaseViewModel with PackageHelpMixin {
 
   void jsonFormatNestedJson(String content) {
     try {
+      content = removeIfQuoted(content);
       if (!(content.startsWith("{") || content.startsWith("["))) {
         throw FormatException("字符串不是json");
       }
@@ -266,7 +158,8 @@ class CustomLogViewModel extends BaseViewModel with PackageHelpMixin {
       // 用于保存提取出的 JSON 字符串
       StringBuffer jsonStringBuffer = StringBuffer();
 
-      var inputContent = contentController.text;
+      var inputContent = removeIfQuoted(contentController.text);
+
       // 按行处理日志
       List<String> logLines = inputContent.split('\n');
 // 正则表达式，用于匹配类似于 '2024-08-28 09:26:11.956 27561-6780 okgo com.sczhuoshi.appzzb I ' 的行
@@ -282,12 +175,12 @@ class CustomLogViewModel extends BaseViewModel with PackageHelpMixin {
       }
 
       // 获取完整的 JSON 字符串
-      String jsonString = jsonStringBuffer.toString();
+      // String jsonString = jsonStringBuffer.toString();
 
-      var jsonObject = json.decode(jsonString);
+      // var jsonObject = json.decode(jsonString);
       // 将解析后的 Map 再次转换为格式化的 JSON 字符串
-      String formattedJson = JsonEncoder.withIndent('  ').convert(jsonObject);
-      contentController.text = formattedJson;
+      // String formattedJson = JsonEncoder.withIndent('  ').convert(jsonObject);
+      contentController.text = jsonStringBuffer.toString();
       notifyListeners();
       checkStateStr = "解析成功";
       print("解析完成");
@@ -327,7 +220,6 @@ class CustomLogViewModel extends BaseViewModel with PackageHelpMixin {
         return;
       }
 
-
       String str = _doDecode(content);
       contentController.text = str;
       checkStateStr = "解析成功";
@@ -345,7 +237,6 @@ class CustomLogViewModel extends BaseViewModel with PackageHelpMixin {
       if (!checkIvOrKey()) {
         return;
       }
-
 
       var str = AESCrypto.encrypt(
           ivController.text.trim(), keyController.text.trim(), content.trim());
@@ -365,8 +256,9 @@ class CustomLogViewModel extends BaseViewModel with PackageHelpMixin {
     // var string = AESCrypto.decrypt(
     //     keyController.text.trim(), keyController.text.trim(), content.trim());
 
-    var string = AESCrypto.decrypt(
-        ivController.text.trim(), keyController.text.trim(), content.trim());
+    final decodedEncryptedText = Uri.decodeComponent(content); // 进行URL解码
+    var string = AESCrypto.decrypt(ivController.text.trim(),
+        keyController.text.trim(), decodedEncryptedText);
     return string;
   }
 
@@ -375,7 +267,7 @@ class CustomLogViewModel extends BaseViewModel with PackageHelpMixin {
       if (!checkIvOrKey()) {
         return;
       }
-
+      content = removeIfQuoted(content);
       var string = _doDecode(content);
       jsonFormat(string);
     } catch (e) {
@@ -395,6 +287,110 @@ class CustomLogViewModel extends BaseViewModel with PackageHelpMixin {
     checkStateStr = "";
     notifyListeners();
   }
+
+
+
+  // 监听 Command + F 组合键
+  void handleKey(RawKeyEvent event) {
+    if (event.isMetaPressed && event.logicalKey == LogicalKeyboardKey.keyF) {
+      showSearchBar = true; // 显示搜索框
+      notifyListeners();
+    }
+    if(event.logicalKey == LogicalKeyboardKey.escape){
+      if(showSearchBar){
+        showSearchBar=false;
+        notifyListeners();
+      }
+
+    }
+  }
+
+  // 搜索关键词，查找所有匹配的位置
+  void searchText(String keyword) {
+    String text = contentController.text.toLowerCase();
+    keyword = keyword.toLowerCase();
+
+    matchIndexes.clear();
+    if (keyword.isNotEmpty) {
+      int startIndex = 0;
+      while (true) {
+        final index = text.indexOf(keyword, startIndex);
+        if (index == -1) break; // 没有更多匹配
+
+        matchIndexes.add(index);
+        startIndex = index + keyword.length; // 查找下一个匹配项
+      }
+
+      // if (_matchIndexes.isNotEmpty) {
+      //   _currentSearchIndex = 0;
+      //   _highlightMatch(_matchIndexes[_currentSearchIndex], keyword.length);
+      // } else {
+      //   _currentSearchIndex = -1;
+      // }
+    }
+  }
+
+  // 高亮匹配项
+  void _highlightMatch(int index, int length) {
+    // 设置 TextField 焦点
+    // textFieldFocusNode.requestFocus();
+    contentFocusNode.requestFocus();
+    // 高亮选中的文本
+
+    contentController.selection = TextSelection(
+      baseOffset: index,
+      extentOffset: index + length,
+    );
+
+    // 确保选中的内容自动滚动到可见区域
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _scrollToSelection();
+    });
+    notifyListeners();
+  }
+
+  // 滚动到当前选中的文本区域
+  void _scrollToSelection() {
+    if (contentController.selection.baseOffset != -1) {
+      double offset = contentController.selection.baseOffset * 7.0; // 假设每个字符的宽度为7
+      contentController.selection = contentController.selection.copyWith(
+        baseOffset: contentController.selection.baseOffset,
+        extentOffset: contentController.selection.extentOffset,
+      );
+    }
+  }
+
+  // 跳到下一个匹配项
+  void nextMatch() {
+
+    if (matchIndexes.isNotEmpty) {
+      currentSearchIndex = (currentSearchIndex + 1) % matchIndexes.length;
+      _highlightMatch(matchIndexes[currentSearchIndex], searchController.text.length);
+    }
+  }
+
+  // 跳到上一个匹配项
+  void previousMatch() {
+    if (matchIndexes.isNotEmpty) {
+      currentSearchIndex = (currentSearchIndex - 1 + matchIndexes.length) % matchIndexes.length;
+      _highlightMatch(matchIndexes[currentSearchIndex], searchController.text.length);
+    }
+  }
+  
+  
+  
+}
+
+String removeIfQuoted(String input) {
+  // 判断字符串前后是否有引号
+  if (input.startsWith('"') && input.endsWith('"')) {
+    return input.substring(1, input.length - 1);
+  } else if (input.startsWith('"')) {
+    return input.substring(1);
+  } else if (input.endsWith('"')) {
+    return input.substring(0, input.length - 1);
+  }
+  return input; // 否则返回原始字符串
 }
 
 dynamic parseNestedJson2(dynamic jsonContent) {
@@ -445,9 +441,6 @@ Map<String, dynamic> parseNestedJson1(String jsonString) {
   return decodedJson;
 }
 
-class FilterLevel extends PopUpMenuItem {
-  String name;
-  String value;
 
-  FilterLevel(this.name, this.value) : super(name);
-}
+
+
