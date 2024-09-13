@@ -355,7 +355,7 @@ class _FeaturePageState extends BasePage<FeaturePage, FeatureViewModel> {
                               buttonView(
                                 IconFont.remoteControl,
                                 "遥控器",
-                                    () {
+                                () {
                                   viewModel.showRemoteControlDialog(context);
                                 },
                               ),
@@ -415,7 +415,14 @@ class _FeaturePageState extends BasePage<FeaturePage, FeatureViewModel> {
                                   viewModel.pressScreen();
                                 },
                               ),
-                              Expanded(flex: 3, child: Container()),
+                              buttonView(
+                                IconFont.monkey,
+                                "Money测试",
+                                () {
+                                  viewModel.monkeyTest();
+                                },
+                              ),
+                              Expanded(flex: 2, child: Container()),
                             ],
                           ),
                         ],

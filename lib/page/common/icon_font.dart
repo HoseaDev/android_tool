@@ -40,4 +40,6 @@ class IconFont {
   static const IconData swipeRight = IconData(0xe60a, fontFamily: "IconFont");
   static const IconData click = IconData(0xe6ca, fontFamily: "IconFont");
   static const IconData remoteControl = IconData(0xe697, fontFamily: "IconFont");
+  //下面为我自定义的Icon
+  static const IconData monkey = IconData(0xe611, fontFamily: "IconFont2");
 }

@@ -25,6 +25,7 @@ class MainViewModel extends BaseViewModel {
   MainViewModel(context) : super(context);
 
   String get deviceId => device?.id ?? "";
+  String get selectPackage => device?.id ?? "";
 
   init() async {
     await checkAdb();

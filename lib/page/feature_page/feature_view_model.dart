@@ -1,3 +1,5 @@
+import 'dart:collection';
+
 import 'package:android_tool/page/common/app.dart';
 import 'package:android_tool/page/common/base_view_model.dart';
 import 'package:android_tool/page/common/key_code.dart';
@@ -11,6 +13,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter/src/widgets/framework.dart';
 import 'package:process_run/shell_run.dart';
+
+import '../../widget/input_list_dialog.dart';
 
 class FeatureViewModel extends BaseViewModel with PackageHelpMixin {
   String deviceId;
@@ -365,15 +369,20 @@ class FeatureViewModel extends BaseViewModel with PackageHelpMixin {
 
   /// 输入文本
   Future<void> inputText() async {
-    var text = await showInputDialog();
-    if (text != null && text.isNotEmpty) {
+    const key = "content";
+    List<InputField> inputFields = [
+      InputField(label: "内容：", hint: "请输入内容", key: key),
+    ];
+    var resultMap = await showInputDialog(inputFields: inputFields);
+    debugPrint("输入的内容：${resultMap}");
+    if (resultMap != null && resultMap.isNotEmpty) {
       await execAdb([
         '-s',
         deviceId,
         'shell',
         'input',
         'text',
-        text,
+        resultMap[key]!,
       ]);
     }
   }
@@ -523,16 +532,17 @@ class FeatureViewModel extends BaseViewModel with PackageHelpMixin {
     }
   }
 
-  Future<String?> showInputDialog({
-    String title = "输入文本",
-    String hintText = "输入文本",
+  Future<Map<String, String>?> showInputDialog({
+    String title = "提示",
+    required List<InputField> inputFields,
   }) async {
-    return await showDialog<String>(
+    return await showDialog<Map<String, String>>(
       context: context,
       builder: (BuildContext context) {
-        return InputDialog(
+        return InputListDialog(
           title: title,
-          hintText: hintText,
+          // hintText: hintText,
+          inputFields: inputFields,
         );
       },
     );
@@ -648,10 +658,17 @@ class FeatureViewModel extends BaseViewModel with PackageHelpMixin {
 
   /// 屏幕点击
   void pressScreen() async {
-    var input = await showInputDialog(title: "请输入坐标", hintText: "x,y");
-    if (input == null || input.isEmpty) {
+    const key = "content";
+    List<InputField> inputFields = [
+      InputField(label: "请输入坐标：", hint: "x,y", key: key),
+    ];
+    var resultMap =
+        await showInputDialog(inputFields: inputFields, title: "请输入坐标");
+
+    if (resultMap == null || resultMap.isEmpty) {
       return;
     }
+    var input = resultMap[key]!;
     if (!input.contains(",")) {
       showResultDialog(content: "请输入正确的坐标");
       return;
@@ -735,6 +752,24 @@ class FeatureViewModel extends BaseViewModel with PackageHelpMixin {
       'input',
       'keyevent',
       keyCode.value.toString(),
+    ]);
+  }
+
+  /// Monkey　测试
+  void monkeyTest() {
+    exeAdbNoWait([
+      '-s',
+      deviceId,
+      'shell',
+      'monkey',
+      '-p',
+      packageName,
+      "--pct-touch",
+      "100", //100％的触摸事件
+      "--throttle",
+      "100", //一个事件后等500毫秒。
+      "-v",
+      "500"
     ]);
   }
 

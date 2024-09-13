@@ -71,6 +71,27 @@ class BaseViewModel extends ChangeNotifier {
     return await exec(adbPath, arguments, onProcess: onProcess);
   }
 
+  exeAdbNoWait(List<String> arguments,
+      {void Function(Process process)? onProcess})  {
+    if (adbPath.isEmpty) {
+      showResultDialog(
+        title: "ADB没有找到",
+        content: "请配置ADB环境变量",
+      );
+      return ;
+    }
+    try {
+        shell.runExecutableArguments(adbPath, arguments,
+          onProcess: onProcess);
+    } catch (e) {
+      print(e);
+      return ;
+    } finally {
+      setLoading(false, text: "");
+    }
+
+  }
+
   /// 安装apk
   void installApk(String deviceId, String path) async {
     if (path.isNotEmpty) {

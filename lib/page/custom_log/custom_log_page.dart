@@ -39,21 +39,6 @@ class _CustomLogPageState extends BasePage<CustomLogPage, CustomLogViewModel> {
             children: [
               const SizedBox(width: 16),
               const TextView("日志："),
-              OutlinedButton(
-                style: ButtonStyle(
-                  backgroundColor: WidgetStateProperty.all<Color>(Colors.blue),
-                  foregroundColor: WidgetStateProperty.all<Color>(Colors.white),
-                  textStyle: WidgetStateProperty.all<TextStyle>(
-                      TextStyle(color: Colors.white30)),
-                  overlayColor: WidgetStateProperty.all<Color>(Colors.blue),
-                  side: WidgetStateProperty.all<BorderSide>(
-                      (BorderSide(color: Colors.blue))),
-                ),
-                onPressed: () {
-                  viewModel.formatLog();
-                },
-                child: Text("格式化日志"),
-              ),
               const SizedBox(width: 12),
               OutlinedButton(
                 style: ButtonStyle(
@@ -70,7 +55,7 @@ class _CustomLogPageState extends BasePage<CustomLogPage, CustomLogViewModel> {
                 },
                 child: Text("格式化JSON"),
               ),
-              const SizedBox(width: 12),
+              const SizedBox(width: 6),
               OutlinedButton(
                 style: ButtonStyle(
                   backgroundColor: WidgetStateProperty.all<Color>(Colors.blue),
@@ -87,14 +72,51 @@ class _CustomLogPageState extends BasePage<CustomLogPage, CustomLogViewModel> {
                 },
                 child: Text("解析嵌套JSON字符串"),
               ),
-              const SizedBox(width: 12),
+              const SizedBox(width: 6),
+              OutlinedButton(
+                style: ButtonStyle(
+                  backgroundColor: WidgetStateProperty.all<Color>(Colors.blue),
+                  foregroundColor: WidgetStateProperty.all<Color>(Colors.white),
+                  textStyle: WidgetStateProperty.all<TextStyle>(
+                      TextStyle(color: Colors.white30)),
+                  overlayColor: WidgetStateProperty.all<Color>(Colors.blue),
+                  side: WidgetStateProperty.all<BorderSide>(
+                      (BorderSide(color: Colors.blue))),
+                ),
+                onPressed: () {
+                  viewModel.formatLog();
+                },
+                child: Text("格式化Android强制分段日志"),
+              ),
+              Container(
+                height: 33,
+                width: 150,
+                alignment: Alignment.centerLeft,
+                padding: const EdgeInsets.symmetric(horizontal: 8),
+                // decoration: BoxDecoration(
+                //   border: Border.all(color: Colors.grey),
+                //   borderRadius: BorderRadius.circular(5),
+                // ),
+                child: TextField(
+                  controller: viewModel.androidLogRegexController,
+                  decoration: const InputDecoration(
+                    contentPadding:
+                        EdgeInsets.symmetric(vertical: 0, horizontal: 8),
+                    hintText: "请输入过滤的正则",
+                    border: OutlineInputBorder(),
+                    hintStyle: TextStyle(fontSize: 14),
+                  ),
+                  style: const TextStyle(fontSize: 14),
+                ),
+              ),
+              const SizedBox(width: 6),
               OutlinedButton(
                 onPressed: () {
                   viewModel.clearText();
                 },
                 child: const TextView("清空内容"),
               ),
-              const SizedBox(width: 12),
+              const SizedBox(width: 6),
               Consumer<CustomLogViewModel>(
                 builder: (context, viewModel, child) {
                   return _resultStateText(viewModel);
@@ -167,7 +189,6 @@ class _CustomLogPageState extends BasePage<CustomLogPage, CustomLogViewModel> {
                 // ),
                 child: TextField(
                   controller: viewModel.ivController,
-                  focusNode: viewModel.textFieldFocusNode,
                   decoration: const InputDecoration(
                     contentPadding:
                         EdgeInsets.symmetric(vertical: 0, horizontal: 8),
@@ -206,9 +227,9 @@ class _CustomLogPageState extends BasePage<CustomLogPage, CustomLogViewModel> {
           Selector<CustomLogViewModel, bool>(
             selector: (context, viewModel) => viewModel.showSearchBar,
             builder: (context, isFilter, child) {
-              debugPrint('showSearchBar: $isFilter');  // 添加调试输出
-              if(!isFilter){
-              return Container();
+              debugPrint('showSearchBar: $isFilter'); // 添加调试输出
+              if (!isFilter) {
+                return Container();
               }
               return Padding(
                 padding: const EdgeInsets.all(8.0),
@@ -219,6 +240,7 @@ class _CustomLogPageState extends BasePage<CustomLogPage, CustomLogViewModel> {
                         controller: viewModel.searchController,
                         decoration: InputDecoration(labelText: '搜索关键字...'),
                         onChanged: viewModel.searchText,
+                        focusNode: viewModel.searchFocusNode,
                       ),
                     ),
                     IconButton(

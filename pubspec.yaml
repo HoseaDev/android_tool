@@ -49,6 +49,11 @@ dependencies:
   cupertino_icons: ^1.0.2
   flutter_svg: ^1.0.3
   encrypt: ^5.0.0
+  xml: ^5.3.1
+  flutter_simple_treeview: ^3.0.2
+  desktop_window: ^0.4.0
+
+
 
 
 dev_dependencies:
@@ -107,5 +112,8 @@ flutter:
     - family: IconFont
       fonts:
         - asset: fonts/iconfont.ttf
+    - family: IconFont2
+      fonts:
+        - asset: fonts/iconfont2.ttf
   # For details regarding fonts from package dependencies,
   # see https://flutter.dev/custom-fonts/#from-packages

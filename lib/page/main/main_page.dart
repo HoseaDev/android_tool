@@ -3,6 +3,7 @@ import 'package:android_tool/page/common/base_page.dart';
 import 'package:android_tool/page/feature_page/feature_page.dart';
 import 'package:android_tool/page/flie_manager/file_manager_page.dart';
 import 'package:android_tool/page/main/devices_model.dart';
+import 'package:android_tool/page/view_ui_hierarchy/view_ui_hierarchy_page.dart';
 import 'package:android_tool/widget/adb_setting_dialog.dart';
 import 'package:android_tool/widget/text_view.dart';
 import 'package:desktop_drop/desktop_drop.dart';
@@ -51,8 +52,9 @@ class _MainPageState extends BasePage<MainPage, MainViewModel> {
                 _leftItem("images/ic_quick_future.svg", "快捷功能", 1),
                 _leftItem("images/ic_folder.svg", "文件管理", 2),
                 _leftItem("images/ic_request_log.svg", "请求日志", 3),
-                _leftItem("images/ic_log.svg", "LOGCAT", 4),
-                _leftItem("images/ic_settings.svg", "设置", 5),
+                _leftItem("images/ic_view_hierarchy.svg", "预览UI层级", 4),
+                _leftItem("images/ic_log.svg", "LOGCAT", 5),
+                _leftItem("images/ic_settings.svg", "设置", 6),
               ],
             ),
           ),
@@ -88,8 +90,12 @@ class _MainPageState extends BasePage<MainPage, MainViewModel> {
     } else if (value == 3) {
       return CustomLogPage(deviceId: viewModel.deviceId);
     } else if (value == 4) {
+      return ViewUIHierarchyPage(
+        deviceId: viewModel.deviceId,
+      );
+    } else if (value == 5) {
       return AndroidLogPage(deviceId: viewModel.deviceId);
-    }  else if (value == 5) {
+    } else if (value == 6) {
       return AdbSettingDialog(viewModel.adbPath);
     } else {
       return Container();

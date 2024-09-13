@@ -18,6 +18,7 @@ class CustomLogViewModel extends BaseViewModel with PackageHelpMixin {
   static const String caseSensitiveKey = 'caseSensitive';
   static const String aesIvKey = 'aesIv';
   static const String aesKeyKey = 'aesKey';
+  static const String androidLogRegexKey = 'androidLogRegex';
 
   String deviceId;
 
@@ -33,13 +34,12 @@ class CustomLogViewModel extends BaseViewModel with PackageHelpMixin {
   TextEditingController ivController = TextEditingController();
   TextEditingController keyController = TextEditingController();
   TextEditingController searchController = TextEditingController();
-  FocusNode textFieldFocusNode = FocusNode(); // 用于控制 TextField 焦点
+  TextEditingController androidLogRegexController = TextEditingController();
+  FocusNode searchFocusNode = FocusNode(); // 用于控制 TextField 焦点
   bool showSearchBar = false;
   int currentSearchIndex = -1;
   List<int> matchIndexes = [];
   FocusNode contentFocusNode = FocusNode();
-  
-  
 
   bool isCaseSensitive = false;
 
@@ -48,8 +48,6 @@ class CustomLogViewModel extends BaseViewModel with PackageHelpMixin {
   String pid = "";
 
   int findIndex = -1;
-
-  
 
   CustomLogViewModel(
     BuildContext context,
@@ -71,17 +69,21 @@ class CustomLogViewModel extends BaseViewModel with PackageHelpMixin {
     });
   }
 
-  void close(){
+  void close() {
     showSearchBar = false;
     searchController.clear();
     matchIndexes.clear();
-     notifyListeners();
+    notifyListeners();
   }
 
   void init() async {
     SharedPreferences.getInstance().then((preferences) {
       ivController.text = preferences.getString(aesIvKey) ?? "";
       keyController.text = preferences.getString(aesKeyKey) ?? "";
+      //默认值是我们自己的正则
+      androidLogRegexController.text =
+          preferences.getString(androidLogRegexKey) ??
+              r"^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}\.\d{3}";
     });
   }
 
@@ -152,20 +154,38 @@ class CustomLogViewModel extends BaseViewModel with PackageHelpMixin {
   }
 
   void formatLog() {
+
     try {
       // 创建一个StringBuffer来累积JSON字符串
-      // 用于保存提取出的 JSON 字符串
-      // 用于保存提取出的 JSON 字符串
       StringBuffer jsonStringBuffer = StringBuffer();
 
       var inputContent = removeIfQuoted(contentController.text);
 
       // 按行处理日志
       List<String> logLines = inputContent.split('\n');
-// 正则表达式，用于匹配类似于 '2024-08-28 09:26:11.956 27561-6780 okgo com.sczhuoshi.appzzb I ' 的行
-      final regex =
-          RegExp(r'^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}\.\d{3} \d+-\d+ .+ I');
 
+
+      if (androidLogRegexController.text.trim().isEmpty) {
+        checkStateStr = "请输入过滤的正则";
+        //保存正则到本地
+        SharedPreferences.getInstance().then((preferences) {
+          preferences.remove(androidLogRegexKey);
+        });
+        notifyListeners();
+        return;
+      }
+
+      String userPattern = androidLogRegexController.text.trim();
+
+      RegExp  regex = RegExp(userPattern);
+
+//保存正则到本地
+      SharedPreferences.getInstance().then((preferences) {
+        preferences.setString(androidLogRegexKey, androidLogRegexController.text.trim());
+      });
+
+
+      // 如果正则表达式合法
       for (String line in logLines) {
         String trimmedLine = line.trim();
         if (regex.hasMatch(trimmedLine)) {
@@ -175,11 +195,6 @@ class CustomLogViewModel extends BaseViewModel with PackageHelpMixin {
       }
 
       // 获取完整的 JSON 字符串
-      // String jsonString = jsonStringBuffer.toString();
-
-      // var jsonObject = json.decode(jsonString);
-      // 将解析后的 Map 再次转换为格式化的 JSON 字符串
-      // String formattedJson = JsonEncoder.withIndent('  ').convert(jsonObject);
       contentController.text = jsonStringBuffer.toString();
       notifyListeners();
       checkStateStr = "解析成功";
@@ -188,7 +203,6 @@ class CustomLogViewModel extends BaseViewModel with PackageHelpMixin {
       print("解析出错：${e.message}");
       checkStateStr = "解析失败";
     } catch (Ex) {
-      // print("e:${e.m}")
       print("其他异常");
     } finally {
       notifyListeners();
@@ -288,20 +302,19 @@ class CustomLogViewModel extends BaseViewModel with PackageHelpMixin {
     notifyListeners();
   }
 
-
-
   // 监听 Command + F 组合键
   void handleKey(RawKeyEvent event) {
     if (event.isMetaPressed && event.logicalKey == LogicalKeyboardKey.keyF) {
       showSearchBar = true; // 显示搜索框
+      searchFocusNode.requestFocus();
       notifyListeners();
     }
-    if(event.logicalKey == LogicalKeyboardKey.escape){
-      if(showSearchBar){
-        showSearchBar=false;
+    if (event.logicalKey == LogicalKeyboardKey.escape) {
+      if (showSearchBar) {
+        showSearchBar = false;
+        contentFocusNode.requestFocus();
         notifyListeners();
       }
-
     }
   }
 
@@ -352,7 +365,8 @@ class CustomLogViewModel extends BaseViewModel with PackageHelpMixin {
   // 滚动到当前选中的文本区域
   void _scrollToSelection() {
     if (contentController.selection.baseOffset != -1) {
-      double offset = contentController.selection.baseOffset * 7.0; // 假设每个字符的宽度为7
+      double offset =
+          contentController.selection.baseOffset * 7.0; // 假设每个字符的宽度为7
       contentController.selection = contentController.selection.copyWith(
         baseOffset: contentController.selection.baseOffset,
         extentOffset: contentController.selection.extentOffset,
@@ -362,23 +376,22 @@ class CustomLogViewModel extends BaseViewModel with PackageHelpMixin {
 
   // 跳到下一个匹配项
   void nextMatch() {
-
     if (matchIndexes.isNotEmpty) {
       currentSearchIndex = (currentSearchIndex + 1) % matchIndexes.length;
-      _highlightMatch(matchIndexes[currentSearchIndex], searchController.text.length);
+      _highlightMatch(
+          matchIndexes[currentSearchIndex], searchController.text.length);
     }
   }
 
   // 跳到上一个匹配项
   void previousMatch() {
     if (matchIndexes.isNotEmpty) {
-      currentSearchIndex = (currentSearchIndex - 1 + matchIndexes.length) % matchIndexes.length;
-      _highlightMatch(matchIndexes[currentSearchIndex], searchController.text.length);
+      currentSearchIndex =
+          (currentSearchIndex - 1 + matchIndexes.length) % matchIndexes.length;
+      _highlightMatch(
+          matchIndexes[currentSearchIndex], searchController.text.length);
     }
   }
-  
-  
-  
 }
 
 String removeIfQuoted(String input) {
@@ -440,7 +453,3 @@ Map<String, dynamic> parseNestedJson1(String jsonString) {
 
   return decodedJson;
 }
-
-
-
-
