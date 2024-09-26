@@ -10,6 +10,10 @@ class ViewUIHierarchyViewModel extends FeatureViewModel {
   String currentScreenshotPath = "";
   String currentDumpInfoPath = "";
   xml.XmlDocument? layoutData;
+  int deviceScreenWidth = 0; // 从 adb 获取的宽度
+  int deviceScreenHeight = 0; // 从 adb 获取的高度
+  final ScrollController horizontalScrollController = ScrollController();
+  final ScrollController verticalScrollController = ScrollController();
 
   ViewUIHierarchyViewModel(
     BuildContext context,
@@ -17,7 +21,7 @@ class ViewUIHierarchyViewModel extends FeatureViewModel {
   ) : super(context, deviceId);
 
   Future<void> getScreenshot() async {
-    PaintingBinding.instance?.imageCache?.clear();
+    // PaintingBinding.instance?.imageCache?.clear();
     var directory = await getTemporaryDirectory();
     var path = p.join(directory.path, "screenshot_${DateTime.now()}.png");
 
@@ -90,8 +94,11 @@ class ViewUIHierarchyViewModel extends FeatureViewModel {
   }
 
   Future<void> loadLayoutData() async {
-    await getScreenshot();
-    await getJumpInfo();
+    // await getScreenshot();
+    // await getJumpInfo();
+    // await getPhoneScreenInfo();
+    //改为并行执行。
+    await Future.wait([getScreenshot(), getJumpInfo(), getPhoneScreenInfo()]);
     debugPrint("viewModel.currentDumpInfoPath:${currentDumpInfoPath}");
     if (currentDumpInfoPath.isNotEmpty) {
       final layoutFile = File(currentDumpInfoPath);
@@ -99,5 +106,38 @@ class ViewUIHierarchyViewModel extends FeatureViewModel {
       layoutData = xml.XmlDocument.parse(xmlString);
       notifyListeners();
     }
+  }
+
+  Future<void> getPhoneScreenInfo() async {
+    // Physical size: 1080x2400';
+    var result = await execAdb([
+      '-s',
+      deviceId,
+      'shell',
+      'wm',
+      'size',
+    ]);
+    RegExp regExp = RegExp(r"(\d+)x(\d+)");
+    var match = regExp.firstMatch("${result?.stdout}");
+    if (match != null) {
+      deviceScreenWidth = int.parse(match.group(1)!);
+      deviceScreenHeight = int.parse(match.group(2)!);
+      debugPrint("deviceScreenWidth:${deviceScreenWidth}");
+      debugPrint("deviceScreenHeight:${deviceScreenHeight}");
+      debugPrint("match0:${match.group(0)}");
+    } else {
+      debugPrint("没有找到屏幕数据");
+      deviceScreenWidth=0;
+      deviceScreenHeight=0;
+    }
+
+    debugPrint("getPhoneScreenInfo ->result:${result?.stdout}");
+  }
+  @override
+  void dispose() {
+    // TODO: implement dispose
+    super.dispose();
+    horizontalScrollController.dispose();
+    verticalScrollController.dispose();
   }
 }

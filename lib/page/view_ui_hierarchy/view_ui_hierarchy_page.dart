@@ -22,17 +22,10 @@ class ViewUIHierarchyPage extends StatefulWidget {
 class _ViewUIHierarchyPageState
     extends BasePage<ViewUIHierarchyPage, ViewUIHierarchyViewModel> {
   Rect? highlightedRect;
-  double screenshotWidth = 0;
-  double screenshotHeight = 0;
-  double deviceScreenWidth = 1080; // 从 adb 获取的宽度
-  double deviceScreenHeight = 2400; // 从 adb 获取的高度
-
   final double fixedImageWidth = 300; // 固定图片宽度
-  late double fixedImageHeight; // 通过计算得到的图片高度
 
   // 创建两个 ScrollController，分别用于水平和垂直滚动
-  final ScrollController _horizontalScrollController = ScrollController();
-  final ScrollController _verticalScrollController = ScrollController();
+
 
   @override
   void initState() {
@@ -53,7 +46,7 @@ class _ViewUIHierarchyPageState
               onPressed: () {
                 viewModel.loadLayoutData();
               },
-              child: TextView("重新加载界面"),
+              child: TextView("载入界面"),
             ),
           ),
           Expanded(
@@ -83,15 +76,16 @@ class _ViewUIHierarchyPageState
     return ViewUIHierarchyViewModel(context, widget.deviceId);
   }
 
-  Widget _layoutViewer(String currentScreenshotPath, String currentDumpInfoPath) {
+  Widget _layoutViewer(
+      String currentScreenshotPath, String currentDumpInfoPath) {
     // 获取图片尺寸
-    if (screenshotWidth == 0 || screenshotHeight == 0) {
-      _getImageSize(currentScreenshotPath);
-    }
+    // if (screenshotWidth == 0 || screenshotHeight == 0) {
+    //   _getImageSize(currentScreenshotPath);
+    // }
 
     return Expanded(
       child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
+        crossAxisAlignment: CrossAxisAlignment.center,
         children: [
           // 左侧显示截图
           Stack(
@@ -101,31 +95,34 @@ class _ViewUIHierarchyPageState
                 width: fixedImageWidth, // 固定宽度300
                 fit: BoxFit.contain, // 图片填充
                 // 通过比例计算图片的高度
-                height: fixedImageWidth * deviceScreenHeight / deviceScreenWidth,
-                key: ValueKey(DateTime.now()),
+                height: fixedImageWidth *
+                    viewModel.deviceScreenHeight /
+                    viewModel.deviceScreenWidth,
               ),
-              if (highlightedRect != null)
-                _buildHighlightRect(), // 高亮红框部分
+              if (highlightedRect != null) _buildHighlightRect(), // 高亮红框部分
             ],
           ),
           // 右侧显示层次结构树，宽度固定为500，同时支持水平和垂直滚动
           SizedBox(
-            width: 620, // 固定宽度
+            width: 648, // 固定宽度
             child: Selector<ViewUIHierarchyViewModel, xml.XmlDocument?>(
-              selector: (BuildContext, ViewUIHierarchyViewModel) => viewModel.layoutData,
-              builder: (BuildContext context, xml.XmlDocument? value, Widget? child) {
+              selector: (BuildContext, ViewUIHierarchyViewModel) =>
+                  viewModel.layoutData,
+              builder: (BuildContext context, xml.XmlDocument? value,
+                  Widget? child) {
                 if (value != null) {
                   return Scrollbar(
-                    controller: _verticalScrollController, // 使用垂直滚动控制器
+                    controller: viewModel.verticalScrollController, // 使用垂直滚动控制器
                     thumbVisibility: true, // 滚动条可见
                     child: SingleChildScrollView(
-                      controller: _horizontalScrollController, // 水平滚动控制器
+                      controller: viewModel.horizontalScrollController, // 水平滚动控制器
                       scrollDirection: Axis.horizontal, // 水平滚动
                       child: SingleChildScrollView(
-                        controller: _verticalScrollController, // 垂直滚动控制器
+                        controller: viewModel.verticalScrollController, // 垂直滚动控制器
                         scrollDirection: Axis.vertical, // 垂直滚动
                         child: ConstrainedBox(
-                          constraints: BoxConstraints(minWidth: 300), // 保证最小宽度为300
+                          constraints: BoxConstraints(minWidth: 300),
+                          // 保证最小宽度为300
                           child: TreeView(
                             nodes: [
                               parseXmlNode(viewModel.layoutData!.rootElement)
@@ -136,7 +133,7 @@ class _ViewUIHierarchyPageState
                     ),
                   );
                 } else {
-                  return const Center(child: CircularProgressIndicator());
+                  return const Center();
                 }
               },
             ),
@@ -149,13 +146,15 @@ class _ViewUIHierarchyPageState
   // 构建红框，用于高亮显示选中的UI元素
   Widget _buildHighlightRect() {
     // 计算设备到窗口的缩放比例
-    double scaleX = fixedImageWidth / deviceScreenWidth;
+    double scaleX = fixedImageWidth / viewModel.deviceScreenWidth;
 
     // 计算显示的图片实际高度
-    double displayedImageHeight = (fixedImageWidth * deviceScreenHeight) / deviceScreenWidth;
+    double displayedImageHeight =
+        (fixedImageWidth * viewModel.deviceScreenHeight) /
+            viewModel.deviceScreenWidth;
 
     // 修正 Y 轴的缩放比例
-    double scaleY = displayedImageHeight / deviceScreenHeight;
+    double scaleY = displayedImageHeight / viewModel.deviceScreenHeight;
 
     // 修正Y轴的偏移量，确保计算后的高度与原始设备比例一致
     double correctedTop = highlightedRect!.top * scaleY;
@@ -166,7 +165,8 @@ class _ViewUIHierarchyPageState
     // 不需要手动减去顶部按钮高度，如果Stack已经考虑了偏移
     return Positioned(
       left: highlightedRect!.left * scaleX,
-      top: correctedTop, // 使用修正后的Y轴坐标
+      top: correctedTop,
+      // 使用修正后的Y轴坐标
       width: highlightedRect!.width * scaleX,
       height: highlightedRect!.height * scaleY,
       child: Container(
@@ -176,7 +176,6 @@ class _ViewUIHierarchyPageState
       ),
     );
   }
-
 
   // 递归解析 XML 布局节点
   TreeNode parseXmlNode(xml.XmlElement node) {
@@ -217,7 +216,7 @@ class _ViewUIHierarchyPageState
     final boundsString = node.getAttribute('bounds');
     if (boundsString != null) {
       final matches =
-      RegExp(r'\[(\d+),(\d+)\]\[(\d+),(\d+)\]').firstMatch(boundsString);
+          RegExp(r'\[(\d+),(\d+)\]\[(\d+),(\d+)\]').firstMatch(boundsString);
       if (matches != null) {
         final left = int.parse(matches.group(1)!);
         final top = int.parse(matches.group(2)!);
@@ -234,16 +233,16 @@ class _ViewUIHierarchyPageState
     return null;
   }
 
-  // 动态获取图片的尺寸
-  void _getImageSize(String imagePath) {
-    final image = Image.file(File(imagePath));
-    image.image.resolve(ImageConfiguration()).addListener(
-      ImageStreamListener((ImageInfo info, bool _) {
-        setState(() {
-          screenshotWidth = info.image.width.toDouble();
-          screenshotHeight = info.image.height.toDouble();
-        });
-      }),
-    );
-  }
+// 动态获取图片的尺寸
+// void _getImageSize(String imagePath) {
+//   final image = Image.file(File(imagePath));
+//   image.image.resolve(ImageConfiguration()).addListener(
+//     ImageStreamListener((ImageInfo info, bool _) {
+//       setState(() {
+//         screenshotWidth = info.image.width.toDouble();
+//         screenshotHeight = info.image.height.toDouble();
+//       });
+//     }),
+//   );
+// }
 }

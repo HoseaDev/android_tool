@@ -13,9 +13,9 @@ void main() {
 
 }
 void setWindowSize() async{
-  await DesktopWindow.setMinWindowSize(Size(1350,800));
-  await DesktopWindow.setMaxWindowSize(Size(1350,800));
-  await DesktopWindow.setWindowSize(Size(1350,800));
+  await DesktopWindow.setMinWindowSize(Size(1200,800));
+  await DesktopWindow.setMaxWindowSize(Size(1200,800));
+  await DesktopWindow.setWindowSize(Size(1200,800));
 
 }
 

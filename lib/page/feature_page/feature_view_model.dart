@@ -13,12 +13,18 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter/src/widgets/framework.dart';
 import 'package:process_run/shell_run.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../widget/input_list_dialog.dart';
 
 class FeatureViewModel extends BaseViewModel with PackageHelpMixin {
   String deviceId;
 
+  static const String pctTouchKey = 'pctTouchKey';
+  static const String pctMotionKey = 'pctMotionKey';
+  static const String pctSysKeysKey = 'pctSysKeysKey';
+  static const String throttleKey = 'throttleKey';
+  static const String eventCountKey = 'eventCountKey';
   List<Color> colors = [
     Colors.red,
     Colors.orange,
@@ -57,6 +63,8 @@ class FeatureViewModel extends BaseViewModel with PackageHelpMixin {
         getInstalledApp(deviceId);
       }
     });
+
+
   }
 
   Future<void> init() async {
@@ -371,7 +379,7 @@ class FeatureViewModel extends BaseViewModel with PackageHelpMixin {
   Future<void> inputText() async {
     const key = "content";
     List<InputField> inputFields = [
-      InputField(label: "内容：", hint: "请输入内容", key: key),
+      InputField(label: "内容：", hint: "请输入内容不支持中文！", key: key),
     ];
     var resultMap = await showInputDialog(inputFields: inputFields);
     debugPrint("输入的内容：${resultMap}");
@@ -756,21 +764,54 @@ class FeatureViewModel extends BaseViewModel with PackageHelpMixin {
   }
 
   /// Monkey　测试
-  void monkeyTest() {
-    exeAdbNoWait([
+  void monkeyTest() async {
+    if(packageName.isEmpty){
+      showTipsDialog("请在应用相关中选择包名");
+      return;
+    }
+    // static const String pctTouchKey = 'pctTouchKey';
+    // static const String pctMotionKey = 'pctMotionKey';
+    // static const String pctSysKeysKey = 'pctSysKeysKey';
+    // static const String throttleKey = 'throttleKey';
+    // static const String eventCountKey = 'eventCountKey';
+    var prefs =  await SharedPreferences.getInstance();
+    prefs.getString(pctTouchKey);
+
+    List<InputField> inputFields = [
+      InputField(label: "触摸手势百分比：", hint: prefs.getString(pctTouchKey)??"90", key: "--pct-touch",inputFormat: "number"),
+      InputField(label: "手势（拖动、滑动等）事件的百分比：", hint: prefs.getString(pctMotionKey)??"10", key: "--pct-motion",inputFormat: "number"),
+      InputField(label: "系统按键事件的百分比：", hint: prefs.getString(pctSysKeysKey)??"0", key: "--pct-syskeys",inputFormat: "number"),
+      InputField(label: "一个事件后等多少毫秒再执行：", hint: prefs.getString(throttleKey)??"10", key: "--throttle",inputFormat: "number"),
+      InputField(label: "执行多少次事件：", hint: prefs.getString(eventCountKey)??"100", key: "eventCount",inputFormat: "number"),
+    ];
+    var resultMap = await showInputDialog(inputFields: inputFields);
+    debugPrint("输入的内容：${resultMap}");
+    prefs.setString(pctTouchKey, resultMap!["--pct-touch"]!);
+    prefs.setString(pctMotionKey, resultMap["--pct-motion"]!);
+    prefs.setString(pctSysKeysKey, resultMap["--pct-syskeys"]!);
+    prefs.setString(throttleKey, resultMap["--throttle"]!);
+    prefs.setString(eventCountKey, resultMap["eventCount"]!);
+
+    // 基础 adb 命令
+    List<String> adbCommand = [
       '-s',
-      deviceId,
+      deviceId, // 假设这里的 deviceId 是已定义的设备ID
       'shell',
       'monkey',
       '-p',
-      packageName,
-      "--pct-touch",
-      "100", //100％的触摸事件
-      "--throttle",
-      "100", //一个事件后等500毫秒。
-      "-v",
-      "500"
-    ]);
+      packageName, // 假设这里的 packageName 是已定义的包名
+      '-v',
+    ];
+    // 处理用户输入的键值对并追加到 adb 命令
+    resultMap?.forEach((key, value) {
+      if (key != "eventCount") {
+        adbCommand.add(key);
+        adbCommand.add(value);
+      }else{
+        adbCommand.add(value);
+      }
+    });
+    exeAdbNoWait(adbCommand);
   }
 
   Color getColor(String name) {
