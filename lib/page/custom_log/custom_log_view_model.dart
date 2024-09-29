@@ -10,6 +10,7 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_list_view/flutter_list_view.dart';
+import 'package:json_editor_2/json_editor.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 class CustomLogViewModel extends BaseViewModel with PackageHelpMixin {
@@ -30,7 +31,8 @@ class CustomLogViewModel extends BaseViewModel with PackageHelpMixin {
 
   FlutterListViewController scrollController = FlutterListViewController();
 
-  TextEditingController contentController = TextEditingController();
+  // TextEditingController contentController = TextEditingController();
+  RichTextEditingController contentController = RichTextEditingController();
   TextEditingController ivController = TextEditingController();
   TextEditingController keyController = TextEditingController();
   TextEditingController searchController = TextEditingController();
@@ -48,6 +50,8 @@ class CustomLogViewModel extends BaseViewModel with PackageHelpMixin {
   String pid = "";
 
   int findIndex = -1;
+  int? _lastCursorPosition;
+
 
   CustomLogViewModel(
     BuildContext context,
@@ -67,6 +71,29 @@ class CustomLogViewModel extends BaseViewModel with PackageHelpMixin {
       isFilterPackage = preferences.getBool(filterPackageKey) ?? false;
       isCaseSensitive = preferences.getBool(caseSensitiveKey) ?? false;
     });
+    contentFocusNode.addListener(_onFocusChange);
+
+  }
+
+  void _onFocusChange() {
+    debugPrint("_onFocusChange:${contentFocusNode.hasFocus}");
+    if(showSearchBar){
+      //每一次的位置都是最后一次，不管是不是失去焦点。
+      _lastCursorPosition = contentController.selection.base.offset;
+    }else{
+      //没有显示搜索按钮的时候，当他失去焦点的那一刻记一下位置。
+      if (contentFocusNode.hasFocus) {
+        if (_lastCursorPosition != null) {
+          // Set the cursor position when focus is gained
+          contentController.selection = TextSelection.fromPosition(
+            TextPosition(offset: _lastCursorPosition!),
+          );
+        }
+      } else {
+        // Record the cursor position when focus is lost
+        _lastCursorPosition = contentController.selection.base.offset;
+      }
+    }
   }
 
   void close() {
@@ -115,7 +142,9 @@ class CustomLogViewModel extends BaseViewModel with PackageHelpMixin {
       var encoder = JsonEncoder.withIndent('  '); // 两个空格缩进
       String formattedJson = encoder.convert(jsonObject);
       contentController.text = formattedJson;
+
       checkStateStr = "解析成功";
+      _lastCursorPosition = null;
       print("解析完成");
     } on FormatException catch (e) {
       print("解析出错：${e.message}");
@@ -127,6 +156,8 @@ class CustomLogViewModel extends BaseViewModel with PackageHelpMixin {
       notifyListeners();
     }
   }
+
+
 
   void jsonFormatNestedJson(String content) {
     try {
@@ -142,6 +173,7 @@ class CustomLogViewModel extends BaseViewModel with PackageHelpMixin {
       contentController.text = formattedJson;
       checkStateStr = "解析成功";
       print("解析完成");
+      _lastCursorPosition = null;
     } on FormatException catch (e) {
       print("解析出错：${e.message}");
       content = "?";
@@ -199,6 +231,7 @@ class CustomLogViewModel extends BaseViewModel with PackageHelpMixin {
       notifyListeners();
       checkStateStr = "解析成功";
       print("解析完成");
+      _lastCursorPosition = null;
     } on FormatException catch (e) {
       print("解析出错：${e.message}");
       checkStateStr = "解析失败";
@@ -233,6 +266,7 @@ class CustomLogViewModel extends BaseViewModel with PackageHelpMixin {
       if (!checkIvOrKey()) {
         return;
       }
+      content = removeIfQuoted(content);
 
       String str = _doDecode(content);
       contentController.text = str;
@@ -311,9 +345,7 @@ class CustomLogViewModel extends BaseViewModel with PackageHelpMixin {
     }
     if (event.logicalKey == LogicalKeyboardKey.escape) {
       if (showSearchBar) {
-        showSearchBar = false;
-        contentFocusNode.requestFocus();
-        notifyListeners();
+        close();
       }
     }
   }
@@ -396,6 +428,7 @@ class CustomLogViewModel extends BaseViewModel with PackageHelpMixin {
 
 String removeIfQuoted(String input) {
   // 判断字符串前后是否有引号
+  input = input.trim();
   if (input.startsWith('"') && input.endsWith('"')) {
     return input.substring(1, input.length - 1);
   } else if (input.startsWith('"')) {
@@ -403,6 +436,7 @@ String removeIfQuoted(String input) {
   } else if (input.endsWith('"')) {
     return input.substring(0, input.length - 1);
   }
+
   return input; // 否则返回原始字符串
 }
 

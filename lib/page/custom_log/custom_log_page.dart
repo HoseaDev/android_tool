@@ -5,6 +5,7 @@ import 'package:android_tool/widget/text_view.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_list_view/flutter_list_view.dart';
+import 'package:json_editor_2/json_editor.dart';
 import 'package:provider/provider.dart';
 import 'package:substring_highlight/substring_highlight.dart';
 
@@ -20,10 +21,27 @@ class CustomLogPage extends StatefulWidget {
 }
 
 class _CustomLogPageState extends BasePage<CustomLogPage, CustomLogViewModel> {
+  late JsonEditor _jsonEditor;
+  final GlobalKey<JsonEditorState> _jsonEditorKey = GlobalKey<JsonEditorState>();
+  void doEditorAnalyze(){
+    _jsonEditorKey.currentState?.doAnalyze();
+  }
+
   @override
   void initState() {
     super.initState();
     viewModel.init();
+    _jsonEditor = JsonEditor.string(
+      key: _jsonEditorKey,
+      controller: viewModel.contentController,
+      focusNode:viewModel.contentFocusNode,
+      onValueChanged: (value) {
+        debugPrint("onValueChanged:${value}");
+        // _elementResult = value;
+        print(value);
+      },
+    );
+
   }
 
   @override
@@ -51,6 +69,7 @@ class _CustomLogPageState extends BasePage<CustomLogPage, CustomLogViewModel> {
                       (BorderSide(color: Colors.blue))),
                 ),
                 onPressed: () {
+                  doEditorAnalyze();
                   viewModel.jsonFormat(viewModel.contentController.text);
                 },
                 child: Text("格式化JSON"),
@@ -67,6 +86,7 @@ class _CustomLogPageState extends BasePage<CustomLogPage, CustomLogViewModel> {
                       (BorderSide(color: Colors.blue))),
                 ),
                 onPressed: () {
+                  doEditorAnalyze();
                   viewModel
                       .jsonFormatNestedJson(viewModel.contentController.text);
                 },
@@ -84,6 +104,7 @@ class _CustomLogPageState extends BasePage<CustomLogPage, CustomLogViewModel> {
                       (BorderSide(color: Colors.blue))),
                 ),
                 onPressed: () {
+                  doEditorAnalyze();
                   viewModel.formatLog();
                 },
                 child: Text("格式化Android强制分段日志"),
@@ -101,7 +122,7 @@ class _CustomLogPageState extends BasePage<CustomLogPage, CustomLogViewModel> {
                   controller: viewModel.androidLogRegexController,
                   decoration: const InputDecoration(
                     contentPadding:
-                        EdgeInsets.symmetric(vertical: 0, horizontal: 8),
+                    EdgeInsets.symmetric(vertical: 0, horizontal: 8),
                     hintText: "请输入过滤的正则",
                     border: OutlineInputBorder(),
                     hintStyle: TextStyle(fontSize: 14),
@@ -112,6 +133,7 @@ class _CustomLogPageState extends BasePage<CustomLogPage, CustomLogViewModel> {
               const SizedBox(width: 6),
               OutlinedButton(
                 onPressed: () {
+                  doEditorAnalyze();
                   viewModel.clearText();
                 },
                 child: const TextView("清空内容"),
@@ -140,6 +162,7 @@ class _CustomLogPageState extends BasePage<CustomLogPage, CustomLogViewModel> {
                       (BorderSide(color: Colors.red))),
                 ),
                 onPressed: () {
+                  doEditorAnalyze();
                   viewModel.encrypt(viewModel.contentController.text);
                 },
                 child: Text("加密"),
@@ -156,7 +179,9 @@ class _CustomLogPageState extends BasePage<CustomLogPage, CustomLogViewModel> {
                       (BorderSide(color: Colors.green))),
                 ),
                 onPressed: () {
+                  doEditorAnalyze();
                   viewModel.decode(viewModel.contentController.text);
+                  // debugPrint("text:${getJsonContent()}");
                 },
                 child: Text("解密"),
               ),
@@ -172,6 +197,7 @@ class _CustomLogPageState extends BasePage<CustomLogPage, CustomLogViewModel> {
                       (BorderSide(color: Colors.green))),
                 ),
                 onPressed: () {
+                  doEditorAnalyze();
                   viewModel
                       .decodeAndJsonFormat(viewModel.contentController.text);
                 },
@@ -191,7 +217,7 @@ class _CustomLogPageState extends BasePage<CustomLogPage, CustomLogViewModel> {
                   controller: viewModel.ivController,
                   decoration: const InputDecoration(
                     contentPadding:
-                        EdgeInsets.symmetric(vertical: 0, horizontal: 8),
+                    EdgeInsets.symmetric(vertical: 0, horizontal: 8),
                     hintText: "请输入iv",
                     border: OutlineInputBorder(),
                     hintStyle: TextStyle(fontSize: 14),
@@ -213,7 +239,7 @@ class _CustomLogPageState extends BasePage<CustomLogPage, CustomLogViewModel> {
                   controller: viewModel.keyController,
                   decoration: const InputDecoration(
                     contentPadding:
-                        EdgeInsets.symmetric(vertical: 0, horizontal: 8),
+                    EdgeInsets.symmetric(vertical: 0, horizontal: 8),
                     hintText: "请输入key",
                     border: OutlineInputBorder(),
                     hintStyle: TextStyle(fontSize: 14),
@@ -274,25 +300,26 @@ class _CustomLogPageState extends BasePage<CustomLogPage, CustomLogViewModel> {
         child: Consumer<CustomLogViewModel>(
           builder: (context, viewModel, child) {
             return TextSelectionTheme(
-              data: TextSelectionThemeData(
-                selectionColor: Colors.yellow.withOpacity(0.5), // 选中的文本颜色设置为黄色
-                cursorColor: Colors.black, // 光标颜色
-              ),
-              child: TextField(
-                controller: viewModel.contentController,
-                focusNode: viewModel.contentFocusNode,
-                maxLines: null,
-                // 允许多行输入
-                expands: true,
-                // 高度撑满父布局
-                textAlignVertical: TextAlignVertical.top,
-                decoration: InputDecoration(
-                  hintText: '请输入文本...',
-                  border: InputBorder.none, // 移除默认的下划线
-                  contentPadding: EdgeInsets.all(18), // 内部边距
+                data: TextSelectionThemeData(
+                  selectionColor: Colors.yellow.withOpacity(0.5),
+                  // 选中的文本颜色设置为黄色
+                  cursorColor: Colors.black, // 光标颜色
                 ),
-              ),
-            );
+                // child: TextField(
+                //   controller: viewModel.contentController,
+                //   focusNode: viewModel.contentFocusNode,
+                //   maxLines: null,
+                //   // 允许多行输入
+                //   expands: true,
+                //   // 高度撑满父布局
+                //   textAlignVertical: TextAlignVertical.top,
+                //   decoration: InputDecoration(
+                //     hintText: '请输入文本...',
+                //     border: InputBorder.none, // 移除默认的下划线
+                //     contentPadding: EdgeInsets.all(18), // 内部边距
+                //   ),
+                // ),
+                child: _jsonEditor);
           },
         ),
       ),
@@ -320,7 +347,9 @@ class _CustomLogPageState extends BasePage<CustomLogPage, CustomLogViewModel> {
     return Text(
       "${viewModel.checkStateStr}",
       style:
-          viewModel.checkStateStr == "解析成功" ? normalTextStyle : errorTextStyle,
+      viewModel.checkStateStr == "解析成功" ? normalTextStyle : errorTextStyle,
     );
   }
+
+
 }
